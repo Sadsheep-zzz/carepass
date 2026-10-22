@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f6f2">
-  <title>CarePass — medication safety card</title>
+  <title>CarePass — shared health record demo</title>
   <style>
     :root {
       color-scheme: light;
@@ -37,6 +37,42 @@
     .prototype-pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #ecd9b4; border-radius: 99px; background: var(--amber); color: var(--amber-ink); padding: 7px 11px; font-size: 12px; font-weight: 650; }
     .prototype-pill:before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #c28b35; }
     .auth-status { max-width: 190px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    body:not(.signed-in) .shell { display: none; }
+    .auth-screen { width: min(520px, calc(100% - 32px)); margin: min(10vh, 80px) auto; }
+    .auth-card { padding: 28px; }
+    .auth-card h1 { font-size: 30px; }
+    .auth-card > p { color: var(--muted); font-size: 13px; }
+    .auth-form { display: grid; gap: 12px; margin-top: 20px; }
+    .auth-demo-accounts { display: grid; gap: 9px; margin-top: 19px; }
+    .auth-demo-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .auth-demo-account strong { display: block; font-size: 12px; }
+    .auth-demo-account small { display: block; color: var(--muted); font-size: 10px; }
+    .auth-error { min-height: 18px; color: var(--red); font-size: 12px; }
+    .access-panel { margin: 16px 0; padding: 18px; }
+    .access-panel h2 { margin: 0; font-size: 15px; }
+    .access-panel > p { margin: 5px 0 13px; color: var(--muted); font-size: 11px; }
+    .access-list { display: grid; gap: 9px; }
+    .access-request { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid var(--line); border-radius: 11px; padding: 12px; }
+    .access-request strong { display: block; font-size: 12px; }
+    .access-request small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .access-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .doctor-tools { display: grid; gap: 14px; }
+    .doctor-tools .form-grid { grid-template-columns: 1fr 1fr; }
+    .doctor-tools .form-grid .add-button { grid-column: 1 / -1; }
+    #doctor-request-form { grid-template-columns: minmax(150px, .8fr) minmax(230px, 1.3fr) auto; }
+    .doctor-record { margin-top: 16px; }
+    .doctor-record-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .doctor-record-head h2 { margin: 0; font-size: 16px; }
+    .doctor-record-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .record-edit { margin-top: 14px; padding: 18px; }
+    .record-edit h2 { margin: 0 0 12px; font-size: 14px; }
+    .record-edit h3 { margin: 14px 0 8px; font-size: 12px; }
+    .record-edit .form-grid { margin-bottom: 10px; }
+    .status-badge { display: inline-flex; align-items: center; border-radius: 99px; background: #f1f3f0; color: #56645b; padding: 4px 8px; font-size: 10px; }
+    .status-badge.pending { background: var(--amber); color: var(--amber-ink); }
+    .status-badge.approved { background: var(--mint); color: var(--green); }
+    .status-badge.denied, .status-badge.revoked { background: var(--red-bg); color: var(--red); }
+    .no-record { border: 1px dashed #dce4dd; border-radius: 10px; padding: 14px; color: #77847b; font-size: 12px; }
     .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 9px 14px; border: 1px solid transparent; border-radius: 10px; font-size: 13px; font-weight: 680; text-decoration: none; transition: background .15s, border-color .15s, transform .15s; }
     .button:active { transform: translateY(1px); }
     .button-primary { background: var(--green); color: white; }
@@ -94,6 +130,10 @@
     .condition-date-field input { display: block; width: 100%; min-height: 34px; margin-top: 4px; border: 1px solid #dce3dc; border-radius: 8px; background: white; color: var(--ink); padding: 6px 8px; font: inherit; font-size: 11px; }
     .add-button { min-height: 39px; white-space: nowrap; }
     .status-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+    body.patient-mode #patient-condition-tools,
+    body.patient-mode #patient-allergy-editor,
+    body.patient-mode #medication-form,
+    body.patient-mode #patient-egfr-editor .inline-fields { display: none !important; }
     .status-option { position: relative; }
     .status-option input { position: absolute; opacity: 0; pointer-events: none; }
     .status-option span { display: block; border: 1px solid var(--line); border-radius: 9px; background: white; color: #58665d; padding: 7px 10px; font-size: 11px; cursor: pointer; }
@@ -200,6 +240,9 @@
     .toast { position: fixed; z-index: 10; bottom: 20px; left: 50%; max-width: calc(100% - 30px); transform: translate(-50%, 16px); border-radius: 10px; background: #183c2e; color: white; padding: 10px 15px; box-shadow: 0 10px 25px #0002; font-size: 12px; opacity: 0; pointer-events: none; transition: .18s; }
     .toast.show { transform: translate(-50%, 0); opacity: 1; }
     @media (max-width: 780px) {
+      #doctor-request-form { grid-template-columns: 1fr; }
+      .auth-card { padding: 20px; }
+      .access-request { align-items: stretch; flex-direction: column; }
       .shell { width: min(100% - 28px, 600px); padding-top: 15px; }
       .layout, .clinician-layout, .doctor-grid { grid-template-columns: 1fr; }
       .hero { align-items: start; flex-direction: column; gap: 12px; }
@@ -236,23 +279,40 @@
     }
     @media print {
       body { background: white; }
-      .topbar, .privacy-note, #patient-view, #clinician-toggle, .footnote, .toast { display: none !important; }
-      #clinician-view { display: block !important; }
+      .auth-screen, .topbar, .privacy-note, #patient-view, .footnote, .toast { display: none !important; }
+      #clinician-view[hidden], #doctor-record[hidden] { display: none !important; }
+      #clinician-view:not([hidden]), #doctor-record:not([hidden]) { display: block !important; }
       .shell { width: 100%; padding: 0; }
       .card { box-shadow: none; break-inside: avoid; }
     }
   </style>
 </head>
 <body>
+  <main class="auth-screen card auth-card" id="auth-screen">
+    <a class="brand" href="#" aria-label="CarePass home"><span class="brandmark">✳</span><span>carepass</span></a>
+    <div class="eyebrow" style="margin-top:20px">Demo sign in</div>
+    <h1>Sign in to CarePass</h1>
+    <p>Use a demo patient or doctor account to explore the consent flow. This local prototype does not provide real authentication.</p>
+    <form class="auth-form" id="login-form">
+      <div class="field"><label for="login-username">Account</label><input class="input" id="login-username" name="username" autocomplete="username" required placeholder="patient@carepass.demo"></div>
+      <div class="field"><label for="login-password">Password</label><input class="input" id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Enter demo password"></div>
+      <div class="auth-error" id="login-error" role="alert"></div>
+      <button class="button button-primary" type="submit">Sign in</button>
+    </form>
+    <div class="auth-demo-accounts" aria-label="Demo accounts">
+      <div class="auth-demo-account"><span><strong>Patient · CP-1001</strong><small>patient@carepass.demo · patient123</small></span><button class="button button-secondary" type="button" data-demo-login="patient">Use account</button></div>
+      <div class="auth-demo-account"><span><strong>Doctor</strong><small>doctor@carepass.demo · doctor123</small></span><button class="button button-secondary" type="button" data-demo-login="doctor">Use account</button></div>
+    </div>
+    <p class="helper">Demo records are fictional and stored in this browser only. Do not enter real patient information.</p>
+  </main>
+
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="CarePass home"><span class="brandmark">✳</span><span>carepass</span></a>
       <div class="top-actions">
         <span class="prototype-pill">Fictional prototype</span>
-        <span class="auth-status" id="tide-status" role="status" aria-live="polite">Use npm run dev to connect TideCloak</span>
-        <button class="button button-secondary" id="tide-login" type="button">Sign in</button>
-        <button class="button button-secondary" id="tide-logout" type="button" hidden>Sign out</button>
-        <button class="button button-secondary" id="clinician-toggle" type="button" aria-pressed="false">Preview clinician view <span aria-hidden="true">→</span></button>
+        <span class="auth-status" id="auth-status" role="status" aria-live="polite"></span>
+        <button class="button button-secondary" id="logout-button" type="button">Sign out</button>
       </div>
     </header>
 
@@ -266,7 +326,7 @@
 
     <div class="privacy-note" role="note">
       <span class="note-icon" aria-hidden="true">i</span>
-      <div><strong>Demo only — use fictional information.</strong>This prototype keeps entries in the open browser page only. It does not save or send health data. Medication reminders are prompts for a clinician to review, not treatment advice.</div>
+      <div><strong>Demo only — use fictional information.</strong>Demo records and access requests are saved in this browser only. This login and consent flow is not secure authentication or a real authorization system. Do not enter real patient data.</div>
     </div>
 
     <main id="patient-view">
@@ -275,9 +335,10 @@
           <section class="card section-card" aria-labelledby="conditions-title">
             <div class="section-head">
               <span class="step" aria-hidden="true">01</span>
-              <div><h2 id="conditions-title">Health conditions</h2><p>Search and add conditions, then add when diagnosed or when it happened (optional).</p></div>
+              <div><h2 id="conditions-title">Health conditions</h2><p>Review the conditions in your record. Only a doctor with approved access can edit them.</p></div>
               <span class="section-count" id="condition-count"></span>
             </div>
+            <div id="patient-condition-tools">
             <div class="search-wrap">
               <span class="search-icon" aria-hidden="true">⌕</span>
               <input class="input" id="condition-search" type="search" autocomplete="off" placeholder="Try “heart” or “kidney”" aria-label="Search health conditions" aria-controls="condition-results">
@@ -290,35 +351,36 @@
               <button type="button" data-query="diabetes">Diabetes</button>
               <button type="button" data-query="asthma">Asthma</button>
             </div>
-            <div class="chip-list" id="condition-list" aria-live="polite"></div>
             <button class="link-button" id="not-sure" type="button">I’m not sure of the exact diagnosis</button>
+            </div>
+            <div class="chip-list" id="condition-list" aria-live="polite"></div>
           </section>
 
           <section class="card section-card" aria-labelledby="allergies-title">
             <div class="section-head">
               <span class="step" aria-hidden="true">02</span>
-              <div><h2 id="allergies-title">Allergies</h2><p>Include what happened, so clinicians can check the details.</p></div>
+              <div><h2 id="allergies-title">Allergies</h2><p>Review reported allergies and reactions.</p></div>
             </div>
+            <div id="patient-allergy-editor">
             <div class="status-options" role="radiogroup" aria-label="Allergy status">
               <label class="status-option"><input type="radio" name="allergy-status" value="listed" checked><span>I have allergies</span></label>
               <label class="status-option"><input type="radio" name="allergy-status" value="none"><span>No known allergies</span></label>
               <label class="status-option"><input type="radio" name="allergy-status" value="unsure"><span>Not sure</span></label>
             </div>
-            <div id="allergy-editor">
               <form id="allergy-form" class="form-grid">
                 <div class="field"><label for="allergen">Medicine or substance</label><input class="input" id="allergen" name="allergen" placeholder="e.g. medicine or ingredient" required></div>
                 <div class="field"><label for="reaction">What happened?</label><select class="select" id="reaction" name="reaction"><option>Rash</option><option>Hives</option><option>Swelling</option><option>Breathing difficulty</option><option>Other / not sure</option></select></div>
                 <div class="field"><label for="severity">How serious?</label><select class="select" id="severity" name="severity"><option>Mild</option><option selected>Moderate</option><option>Severe</option><option>Not sure</option></select></div>
                 <button class="button button-secondary add-button" type="submit">Add allergy</button>
               </form>
-              <div class="item-list" id="allergy-list" aria-live="polite"></div>
             </div>
+            <div class="item-list" id="allergy-list" aria-live="polite"></div>
           </section>
 
           <section class="card section-card" aria-labelledby="medications-title">
             <div class="section-head">
               <span class="step" aria-hidden="true">03</span>
-              <div><h2 id="medications-title">Current medicines</h2><p>Include prescriptions, over-the-counter medicines, and supplements.</p></div>
+              <div><h2 id="medications-title">Current medicines</h2><p>Review prescriptions, over-the-counter medicines, and supplements.</p></div>
               <span class="section-count" id="medication-count"></span>
             </div>
             <form id="medication-form" class="form-grid">
@@ -328,9 +390,10 @@
               <button class="button button-secondary add-button" type="submit">Add medicine</button>
             </form>
             <div class="item-list" id="medication-list" aria-live="polite"></div>
-            <div class="subsection">
+            <div class="subsection" id="patient-egfr-editor">
               <p class="subsection-title">Kidney function (optional)</p>
-              <p class="helper">Add a recent eGFR result if you know it. Leave blank if you don’t.</p>
+              <p class="helper" id="patient-egfr-readonly">No eGFR result recorded.</p>
+              <p class="helper">A doctor with approved access can update this result.</p>
               <div class="inline-fields">
                 <div class="field"><label for="egfr">eGFR</label><input class="input" id="egfr" type="number" min="0" max="200" inputmode="decimal" placeholder="e.g. 72"></div>
                 <div class="field"><label for="egfr-date">Test date</label><input class="input" id="egfr-date" type="date"></div>
@@ -346,12 +409,17 @@
             <div class="summary-stat"><span>Conditions</span><strong id="summary-conditions">0 added</strong></div>
             <div class="summary-stat"><span>Allergy status</span><strong id="summary-allergies">Reported</strong></div>
             <div class="summary-stat"><span>Current medicines</span><strong id="summary-medicines">0 added</strong></div>
-            <div class="summary-tip"><strong>Keep it current</strong>Update your list when a medicine starts, stops, or changes. The doctor preview labels information as patient reported.</div>
+            <div class="summary-tip"><strong>Patient reported</strong>Your health information is shown to doctors only after you approve their access request.</div>
           </section>
           <section class="card share-card">
-            <h2>Ready for your appointment?</h2>
-            <p>Open a clinician-style summary of this fictional profile. This is a local preview; it does not share records with anyone.</p>
-            <button class="button button-primary" type="button" data-open-clinician>Preview clinician summary <span aria-hidden="true">→</span></button>
+            <h2>Your patient ID</h2>
+            <p>Give this ID to a doctor only when you want them to request access.</p>
+            <div class="summary-tip"><strong id="patient-id-label">CP-1001</strong>Doctors must request access. You can accept, deny, or revoke it below.</div>
+          </section>
+          <section class="card access-panel" id="patient-access-panel">
+            <h2>Doctor access requests</h2>
+            <p>Approving a request lets that doctor view and edit your demo record until you revoke access.</p>
+            <div class="access-list" id="patient-request-list"></div>
           </section>
           <section class="card profile-summary">
             <h2>How the reminders work</h2>
@@ -363,10 +431,22 @@
     </main>
 
     <main id="clinician-view" hidden>
+      <section class="card access-panel">
+        <h2>Request a patient record</h2>
+        <p>Enter the patient ID and a reason. The patient must approve before you can view or edit their history.</p>
+        <form class="form-grid" id="doctor-request-form">
+          <div class="field"><label for="request-patient-id">Patient ID</label><input class="input" id="request-patient-id" name="patientId" required placeholder="e.g. CP-1001"></div>
+          <div class="field"><label for="request-reason">Reason for access</label><input class="input" id="request-reason" name="reason" required maxlength="160" placeholder="e.g. Review before appointment"></div>
+          <button class="button button-primary add-button" type="submit">Send request</button>
+        </form>
+        <div class="access-list" id="doctor-request-list" style="margin-top:14px"></div>
+      </section>
+
+      <section class="doctor-record" id="doctor-record" hidden>
       <header class="doctor-profile card">
-        <div class="doctor-avatar" aria-hidden="true">AT</div>
-        <div class="doctor-identity"><h2>Alex Tan <span class="source-tag">Demo profile</span></h2><p>Patient reported · Updated <time id="updated-at">just now</time></p></div>
-        <button class="button button-secondary" type="button" data-open-patient>Edit profile</button>
+        <div class="doctor-avatar" aria-hidden="true">CP</div>
+        <div class="doctor-identity"><h2 id="doctor-patient-name">Patient record <span class="source-tag">Consent granted</span></h2><p>Patient ID <strong id="doctor-patient-id">CP-1001</strong> · Updated <time id="updated-at">just now</time></p></div>
+        <button class="button button-secondary" type="button" id="close-patient-record">Close record</button>
         <button class="button button-secondary" type="button" onclick="window.print()">Print</button>
       </header>
 
@@ -407,7 +487,39 @@
           </section>
         </div>
       </details>
+      <section class="record-edit card" id="doctor-edit-panel">
+        <h2>Edit patient history</h2>
+        <p class="helper">Your edits are saved to the local demo record. They are attributed as patient-reported or clinician-entered notes in this prototype.</p>
+        <h3>Add a condition</h3>
+        <form class="form-grid" id="doctor-condition-form">
+          <div class="field"><label for="doctor-condition-name">Condition</label><input class="input" id="doctor-condition-name" name="name" required></div>
+          <div class="field"><label for="doctor-condition-group">Category</label><select class="select" id="doctor-condition-group" name="group"><option>Other</option><option>Heart</option><option>Kidney</option><option>Heart & circulation</option></select></div>
+          <div class="field"><label for="doctor-condition-date">Date (optional)</label><input class="input" id="doctor-condition-date" name="date" type="date"></div>
+          <button class="button button-secondary add-button" type="submit">Add condition</button>
+        </form>
+        <h3>Add an allergy</h3>
+        <form class="form-grid" id="doctor-allergy-form">
+          <div class="field"><label for="doctor-allergy-name">Substance</label><input class="input" id="doctor-allergy-name" name="substance" required></div>
+          <div class="field"><label for="doctor-allergy-reaction">Reaction</label><input class="input" id="doctor-allergy-reaction" name="reaction" required></div>
+          <div class="field"><label for="doctor-allergy-severity">Severity</label><select class="select" id="doctor-allergy-severity" name="severity"><option>Mild</option><option>Moderate</option><option>Severe</option><option>Not sure</option></select></div>
+          <button class="button button-secondary add-button" type="submit">Add allergy</button>
+        </form>
+        <h3>Kidney function</h3>
+        <form class="inline-fields" id="doctor-egfr-form">
+          <div class="field"><label for="doctor-egfr">eGFR</label><input class="input" id="doctor-egfr" type="number" min="0" max="200" inputmode="decimal" placeholder="e.g. 72"></div>
+          <div class="field"><label for="doctor-egfr-date">Test date</label><input class="input" id="doctor-egfr-date" type="date"></div>
+          <button class="button button-secondary add-button" type="submit">Save kidney function</button>
+        </form>
+        <h3>Add a medicine</h3>
+        <form class="form-grid" id="doctor-medication-form">
+          <div class="field"><label for="doctor-medication-name">Medicine</label><input class="input" id="doctor-medication-name" name="name" required></div>
+          <div class="field"><label for="doctor-medication-dose">Dose</label><input class="input" id="doctor-medication-dose" name="dose" required></div>
+          <div class="field"><label for="doctor-medication-frequency">Frequency</label><input class="input" id="doctor-medication-frequency" name="frequency" required></div>
+          <button class="button button-secondary add-button" type="submit">Add medicine</button>
+        </form>
+      </section>
       <p class="doctor-disclaimer">Fictional demo information. Patient-reported details are not verified. This card does not diagnose or provide medication-safety clearance.</p>
+      </section>
     </main>
 
     <footer class="footnote">CarePass prototype · Fictional records only · This preview does not provide a diagnosis, prescription, or medication-safety clearance.</footer>
@@ -430,7 +542,7 @@
       { id: "stroke", name: "Stroke or TIA", description: "A previous stroke or transient ischemic attack.", group: "Other", terms: ["stroke", "tia"] },
     ];
 
-    const profile = {
+    const seedProfile = {
       conditions: [
         { id: "ckd", name: "Chronic kidney disease", group: "Kidney", detail: "Stage not recorded", date: "2022-09-14" },
         { id: "atrial-fibrillation", name: "Atrial fibrillation", group: "Heart", detail: "Patient reported", date: "2024-03-06" },
@@ -444,8 +556,32 @@
       ],
       egfr: "",
       egfrDate: "",
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     };
+
+    const STORE_KEY = "carepass-demo-state-v1";
+    const demoUsers = [
+      { id: "patient-1001", username: "patient@carepass.demo", password: "patient123", name: "Alex Tan", role: "patient", patientId: "CP-1001" },
+      { id: "doctor-2001", username: "doctor@carepass.demo", password: "doctor123", name: "Dr. Maya Lee", role: "doctor" },
+    ];
+    function loadStore() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+        if (saved && saved.patients && saved.requests) return saved;
+      } catch (_error) {
+        return { patients: {}, requests: [] };
+      }
+      return { patients: {}, requests: [] };
+    }
+    const appState = loadStore();
+    if (!appState.patients["CP-1001"]) {
+      appState.patients["CP-1001"] = { name: "Alex Tan", profile: JSON.parse(JSON.stringify(seedProfile)) };
+    }
+    if (!Array.isArray(appState.requests)) appState.requests = [];
+    let currentUser = null;
+    let activePatientId = "CP-1001";
+    let profile = appState.patients[activePatientId].profile;
+    let activeRequestId = null;
 
     const $ = function (selector) { return document.querySelector(selector); };
     const esc = function (value) {
@@ -460,7 +596,28 @@
       if (parts.length !== 3 || parts.some(function (part) { return !Number.isFinite(part); })) return value;
       return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     };
-    let currentView = "patient";
+    function saveStore() {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(appState)); } catch (_error) { /* Keep this demo usable in restricted browser storage. */ }
+    }
+
+    function canDoctorAccess(patientId) {
+      return Boolean(currentUser && currentUser.role === "doctor" && appState.requests.some(function (request) {
+        return request.doctorId === currentUser.id && request.patientId === patientId && request.status === "approved";
+      }));
+    }
+
+    function canEditCurrentProfile() {
+      if (!currentUser || !activePatientId) return false;
+      return currentUser.role === "doctor" && canDoctorAccess(activePatientId);
+    }
+
+    function switchProfile(patientId) {
+      const patient = appState.patients[patientId];
+      if (!patient) return false;
+      activePatientId = patientId;
+      profile = patient.profile;
+      return true;
+    }
 
     function toast(message) {
       const node = $("#toast");
@@ -470,8 +627,14 @@
     }
 
     function markUpdated() {
-      profile.updatedAt = new Date();
+      if (!canEditCurrentProfile()) {
+        toast("You do not have permission to edit this record.");
+        return false;
+      }
+      profile.updatedAt = new Date().toISOString();
+      saveStore();
       renderOverview();
+      return true;
     }
 
     function renderConditions() {
@@ -481,11 +644,13 @@
         list.innerHTML = '<p class="empty-state">No conditions added yet. You can leave this blank if you’re not sure.</p>';
         return;
       }
-      list.innerHTML = profile.conditions.map(function (condition, index) {
-        return '<div class="health-chip"><span class="item-symbol" aria-hidden="true">✚</span><div class="item-main"><strong>' + esc(condition.name) + '</strong><small>' + esc(condition.group) + ' · ' + esc(condition.detail || "Patient reported") + '</small></div><label class="condition-date-field">When diagnosed / happened (optional)<input type="date" value="' + esc(condition.date || "") + '" data-condition-date="' + index + '" aria-label="Date ' + esc(condition.name) + ' was diagnosed or happened"></label><span class="source-tag">Patient reported</span><button class="remove-button" type="button" data-remove-condition="' + index + '" aria-label="Remove ' + esc(condition.name) + '">×</button></div>';
+      list.innerHTML = profile.conditions.map(function (condition) {
+        const dateLabel = condition.date ? ' · ' + esc(condition.date) : '';
+        return '<div class="health-chip"><span class="item-symbol" aria-hidden="true">✚</span><div class="item-main"><strong>' + esc(condition.name) + '</strong><small>' + esc(condition.group) + ' · ' + esc(condition.detail || "Patient reported") + dateLabel + '</small></div><span class="source-tag">Patient reported</span></div>';
       }).join("");
       document.querySelectorAll("[data-condition-date]").forEach(function (input) {
         input.addEventListener("change", function () {
+          if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
           const condition = profile.conditions[Number(input.dataset.conditionDate)];
           if (!condition) return;
           condition.date = input.value;
@@ -495,6 +660,7 @@
       });
       document.querySelectorAll("[data-remove-condition]").forEach(function (button) {
         button.addEventListener("click", function () {
+          if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
           profile.conditions.splice(Number(button.dataset.removeCondition), 1);
           markUpdated();
           renderConditions();
@@ -503,8 +669,7 @@
     }
 
     function renderAllergies() {
-      const editor = $("#allergy-editor");
-      editor.hidden = profile.allergyStatus !== "listed";
+      $("#allergy-form").hidden = profile.allergyStatus !== "listed";
       document.querySelectorAll('input[name="allergy-status"]').forEach(function (radio) {
         radio.checked = radio.value === profile.allergyStatus;
       });
@@ -521,11 +686,12 @@
         list.innerHTML = '<p class="empty-state">No allergy details entered yet.</p>';
         return;
       }
-      list.innerHTML = profile.allergies.map(function (allergy, index) {
-        return '<div class="list-item"><span class="item-symbol" aria-hidden="true">⚕</span><div class="item-main"><strong>' + esc(allergy.substance) + '</strong><small>' + esc(allergy.reaction) + ' · ' + esc(allergy.severity) + ' · Patient reported</small></div><button class="remove-button" type="button" data-remove-allergy="' + index + '" aria-label="Remove allergy to ' + esc(allergy.substance) + '">×</button></div>';
+      list.innerHTML = profile.allergies.map(function (allergy) {
+        return '<div class="list-item"><span class="item-symbol" aria-hidden="true">⚕</span><div class="item-main"><strong>' + esc(allergy.substance) + '</strong><small>' + esc(allergy.reaction) + ' · ' + esc(allergy.severity) + ' · ' + esc(allergy.source || "Patient reported") + '</small></div></div>';
       }).join("");
       document.querySelectorAll("[data-remove-allergy]").forEach(function (button) {
         button.addEventListener("click", function () {
+          if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
           profile.allergies.splice(Number(button.dataset.removeAllergy), 1);
           markUpdated();
           renderAllergies();
@@ -536,16 +702,20 @@
 
     function renderMedications() {
       const list = $("#medication-list");
+      $("#patient-egfr-readonly").textContent = profile.egfr
+        ? "eGFR " + profile.egfr + (profile.egfrDate ? " · Test date: " + profile.egfrDate : "") + " · " + (profile.egfrSource || "Patient reported")
+        : "No eGFR result recorded.";
       $("#medication-count").textContent = profile.medications.length + (profile.medications.length === 1 ? " listed" : " listed");
       if (!profile.medications.length) {
         list.innerHTML = '<p class="empty-state">No medicines listed. Add prescriptions, over-the-counter medicines, and supplements.</p>';
         return;
       }
-      list.innerHTML = profile.medications.map(function (medicine, index) {
-        return '<div class="list-item"><span class="item-symbol" aria-hidden="true">✣</span><div class="item-main"><strong>' + esc(medicine.name) + '</strong><small>' + esc(medicine.dose) + ' · ' + esc(medicine.frequency) + ' · Patient reported</small></div><button class="remove-button" type="button" data-remove-medication="' + index + '" aria-label="Remove ' + esc(medicine.name) + '">×</button></div>';
+      list.innerHTML = profile.medications.map(function (medicine) {
+        return '<div class="list-item"><span class="item-symbol" aria-hidden="true">✣</span><div class="item-main"><strong>' + esc(medicine.name) + '</strong><small>' + esc(medicine.dose) + ' · ' + esc(medicine.frequency) + ' · ' + esc(medicine.source || "Patient reported") + '</small></div></div>';
       }).join("");
       document.querySelectorAll("[data-remove-medication]").forEach(function (button) {
         button.addEventListener("click", function () {
+          if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
           profile.medications.splice(Number(button.dataset.removeMedication), 1);
           markUpdated();
           renderMedications();
@@ -558,7 +728,7 @@
       $("#summary-conditions").textContent = profile.conditions.length + (profile.conditions.length === 1 ? " added" : " added");
       $("#summary-allergies").textContent = profile.allergyStatus === "none" ? "None reported" : profile.allergyStatus === "unsure" ? "Not sure" : profile.allergies.length + (profile.allergies.length === 1 ? " reported" : " reported");
       $("#summary-medicines").textContent = profile.medications.length + (profile.medications.length === 1 ? " added" : " added");
-      $("#updated-at").textContent = profile.updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      $("#updated-at").textContent = new Date(profile.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
 
     function hideResults() {
@@ -566,6 +736,10 @@
     }
 
     function addCondition(condition) {
+      if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) {
+        toast("Sign in as the patient to edit this profile.");
+        return;
+      }
       if (profile.conditions.some(function (item) { return item.id === condition.id; })) {
         toast("That condition is already on the card.");
         return;
@@ -611,6 +785,15 @@
     }
 
     function renderDoctor() {
+      const patient = appState.patients[activePatientId];
+      const canEdit = canDoctorAccess(activePatientId);
+      if (patient) {
+        $("#doctor-patient-name").innerHTML = esc(patient.name) + ' <span class="source-tag">Consent granted</span>';
+        $("#doctor-patient-id").textContent = activePatientId;
+      }
+      $("#doctor-edit-panel").hidden = !canEdit;
+      $("#doctor-egfr").value = profile.egfr || "";
+      $("#doctor-egfr-date").value = profile.egfrDate || "";
       const priority = $("#doctor-priority");
       const label = $("#doctor-priority-label");
       const allergy = $("#doctor-allergy");
@@ -618,8 +801,8 @@
       if (profile.allergyStatus === "listed" && profile.allergies.length) {
         priority.className = "doctor-priority card attention";
         label.textContent = "Allergy reported";
-        allergy.innerHTML = profile.allergies.map(function (item) {
-          return '<div class="allergy-entry"><strong>' + esc(item.substance) + '</strong><span>' + esc(item.reaction) + ' · ' + esc(item.severity) + '</span></div>';
+        allergy.innerHTML = profile.allergies.map(function (item, index) {
+          return '<div class="allergy-entry"><strong>' + esc(item.substance) + '</strong><span>' + esc(item.reaction) + ' · ' + esc(item.severity) + ' · ' + esc(item.source || "Patient reported") + '</span>' + (canEdit ? '<button class="remove-button" type="button" data-doctor-remove-allergy="' + index + '" aria-label="Remove allergy to ' + esc(item.substance) + '">×</button>' : '') + '</div>';
         }).join("");
         note.textContent = "Patient reported · confirm with patient";
       } else if (profile.allergyStatus === "none") {
@@ -639,8 +822,8 @@
         note.textContent = "Allergies selected, but no details entered";
       }
 
-      $("#doctor-conditions").innerHTML = profile.conditions.length ? profile.conditions.map(function (item) {
-        return '<div class="doctor-condition"><strong>' + esc(item.name) + '</strong><span>' + (item.date ? 'Date: ' + esc(displayDate(item.date)) : 'Date not provided') + ' · Patient reported</span></div>';
+      $("#doctor-conditions").innerHTML = profile.conditions.length ? profile.conditions.map(function (item, index) {
+        return '<div class="doctor-condition"><strong>' + esc(item.name) + '</strong>' + (canEdit ? '<label class="condition-date-field">Date<input type="date" value="' + esc(item.date || "") + '" data-doctor-condition-date="' + index + '"></label>' : '<span>' + (item.date ? 'Date: ' + esc(displayDate(item.date)) : 'Date not provided') + '</span>') + '<span>' + esc(item.source || 'Patient reported') + '</span>' + (canEdit ? '<button class="remove-button" type="button" data-doctor-remove-condition="' + index + '" aria-label="Remove ' + esc(item.name) + '">×</button>' : '') + '</div>';
       }).join("") : '<p class="empty-state">No conditions listed.</p>';
 
       const kidneyCondition = profile.conditions.find(function (condition) { return condition.group === "Kidney"; });
@@ -648,38 +831,310 @@
       kidneySummary.hidden = !kidneyCondition;
       if (kidneyCondition) {
         kidneySummary.innerHTML = profile.egfr
-          ? '<strong>Kidney function:</strong> eGFR ' + esc(profile.egfr) + (profile.egfrDate ? ' · ' + esc(profile.egfrDate) : '') + ' · patient reported'
+          ? '<strong>Kidney function:</strong> eGFR ' + esc(profile.egfr) + (profile.egfrDate ? ' · ' + esc(profile.egfrDate) : '') + ' · ' + esc(profile.egfrSource || "Patient reported")
           : '<strong>Kidney function:</strong> No result recorded';
       }
 
-      $("#doctor-medications").innerHTML = profile.medications.length ? profile.medications.map(function (item) {
-        return '<div class="doctor-med-row"><strong>' + esc(item.name) + '</strong><span>' + esc(item.dose) + ' · ' + esc(item.frequency) + '</span></div>';
+      $("#doctor-medications").innerHTML = profile.medications.length ? profile.medications.map(function (item, index) {
+        return '<div class="doctor-med-row"><strong>' + esc(item.name) + '</strong><span>' + esc(item.dose) + ' · ' + esc(item.frequency) + (canEdit ? ' <button class="remove-button" type="button" data-doctor-remove-medication="' + index + '" aria-label="Remove ' + esc(item.name) + '">×</button>' : '') + '</span></div>';
       }).join("") : '<p class="empty-state">No current medicines listed.</p>';
 
       $("#planned-result").hidden = true;
       $("#planned-result").textContent = "";
       $("#planned-result").className = "check-result neutral";
+      document.querySelectorAll("[data-doctor-condition-date]").forEach(function (input) {
+        input.addEventListener("change", function () {
+          if (!canDoctorAccess(activePatientId)) return toast("Access has been revoked.");
+          const condition = profile.conditions[Number(input.dataset.doctorConditionDate)];
+          if (!condition) return;
+          condition.date = input.value;
+          condition.source = "Clinician edited";
+          markUpdated();
+          renderDoctor();
+        });
+      });
+      document.querySelectorAll("[data-doctor-remove-condition]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          if (!canDoctorAccess(activePatientId)) return toast("Access has been revoked.");
+          profile.conditions.splice(Number(button.dataset.doctorRemoveCondition), 1);
+          markUpdated();
+          renderConditions();
+          renderDoctor();
+        });
+      });
+      document.querySelectorAll("[data-doctor-remove-allergy]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          if (!canDoctorAccess(activePatientId)) return toast("Access has been revoked.");
+          profile.allergies.splice(Number(button.dataset.doctorRemoveAllergy), 1);
+          if (!profile.allergies.length) profile.allergyStatus = "unsure";
+          markUpdated();
+          renderAllergies();
+          renderDoctor();
+        });
+      });
+      document.querySelectorAll("[data-doctor-remove-medication]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          if (!canDoctorAccess(activePatientId)) return toast("Access has been revoked.");
+          profile.medications.splice(Number(button.dataset.doctorRemoveMedication), 1);
+          markUpdated();
+          renderMedications();
+          renderDoctor();
+        });
+      });
     }
 
-    function setView(view) {
-      const authenticatedRole = document.body.dataset.carepassRole;
-      if (authenticatedRole && view !== authenticatedRole) {
-        toast(authenticatedRole === "doctor" ? "This TideCloak account opens the clinician view." : "This TideCloak account opens the patient view.");
-        return;
-      }
-      currentView = view;
-      const isClinician = view === "clinician";
-      $("#patient-view").hidden = isClinician;
-      $("#clinician-view").hidden = !isClinician;
-      $("#clinician-toggle").setAttribute("aria-pressed", String(isClinician));
-      $("#clinician-toggle").innerHTML = isClinician ? 'Back to my card <span aria-hidden="true">←</span>' : 'Preview clinician view <span aria-hidden="true">→</span>';
-      $("#view-eyebrow").textContent = isClinician ? "Clinician view · demo profile" : "Your health profile";
-      $("#page-title").textContent = isClinician ? "Patient summary" : "Your medication safety card.";
-      $("#page-description").textContent = isClinician ? "Allergies, health history, and current medicines at a glance." : "Keep your conditions, allergies, and medicines together. Share a clear summary with your care team.";
-      document.body.classList.toggle("clinician-mode", isClinician);
-      if (isClinician) renderDoctor();
+    function setDashboardForUser() {
+      const isDoctor = currentUser?.role === "doctor";
+      document.body.classList.toggle("patient-mode", !isDoctor);
+      $("#patient-view").hidden = isDoctor;
+      $("#clinician-view").hidden = !isDoctor;
+      $("#doctor-record").hidden = true;
+      $("#view-eyebrow").textContent = isDoctor ? "Doctor workspace" : "Your health profile";
+      $("#page-title").textContent = isDoctor ? "Patient access" : "Your medication safety card.";
+      $("#page-description").textContent = isDoctor ? "Request a patient's consent before opening or editing their health history." : "Review your health record and decide which doctors may access it. Only approved doctors can edit the record.";
+      $("#auth-status").textContent = currentUser ? currentUser.name + " · " + (isDoctor ? "Doctor" : "Patient") : "";
+      $("#patient-id-label").textContent = currentUser?.patientId || "";
+      if (isDoctor) renderDoctorRequests();
+      else renderPatientRequests();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
+
+    function formatDateTime(value) {
+      return new Date(value).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function renderPatientRequests() {
+      const list = $("#patient-request-list");
+      if (!currentUser || currentUser.role !== "patient") {
+        list.innerHTML = "";
+        return;
+      }
+      const requests = appState.requests.filter(function (request) { return request.patientId === currentUser.patientId; });
+      if (!requests.length) {
+        list.innerHTML = '<div class="no-record">No doctors have requested access yet.</div>';
+        return;
+      }
+      list.innerHTML = requests.slice().reverse().map(function (request) {
+        const status = esc(request.status);
+        const actions = request.status === "pending"
+          ? '<div class="access-actions"><button class="button button-primary" type="button" data-request-decision="approved" data-request-id="' + esc(request.id) + '">Allow view and edits</button><button class="button button-secondary" type="button" data-request-decision="denied" data-request-id="' + esc(request.id) + '">Deny</button></div>'
+          : request.status === "approved"
+            ? '<button class="button button-secondary" type="button" data-request-decision="revoked" data-request-id="' + esc(request.id) + '">Revoke access</button>'
+            : '';
+        return '<article class="access-request"><div><strong>' + esc(request.doctorName) + ' <span class="status-badge ' + status + '">' + status + '</span></strong><small>' + esc(request.reason) + ' · ' + esc(formatDateTime(request.createdAt)) + '</small></div>' + actions + '</article>';
+      }).join("");
+      list.querySelectorAll("[data-request-decision]").forEach(function (button) {
+        button.addEventListener("click", function () { decideAccessRequest(button.dataset.requestId, button.dataset.requestDecision); });
+      });
+    }
+
+    function renderDoctorRequests() {
+      const list = $("#doctor-request-list");
+      if (!currentUser || currentUser.role !== "doctor") {
+        list.innerHTML = "";
+        return;
+      }
+      const requests = appState.requests.filter(function (request) { return request.doctorId === currentUser.id; });
+      if (!requests.length) {
+        list.innerHTML = '<div class="no-record">No access requests yet.</div>';
+        return;
+      }
+      list.innerHTML = requests.slice().reverse().map(function (request) {
+        const status = esc(request.status);
+        const action = request.status === "approved"
+          ? '<button class="button button-primary" type="button" data-open-approved-record="' + esc(request.id) + '">Open record</button>'
+          : '';
+        return '<article class="access-request"><div><strong>' + esc(request.patientId) + ' <span class="status-badge ' + status + '">' + status + '</span></strong><small>' + esc(request.reason) + ' · ' + esc(formatDateTime(request.createdAt)) + '</small></div>' + action + '</article>';
+      }).join("");
+      list.querySelectorAll("[data-open-approved-record]").forEach(function (button) {
+        button.addEventListener("click", function () { openApprovedRecord(button.dataset.openApprovedRecord); });
+      });
+    }
+
+    function decideAccessRequest(requestId, decision) {
+      if (!currentUser || currentUser.role !== "patient" || !["approved", "denied", "revoked"].includes(decision)) return;
+      const request = appState.requests.find(function (item) {
+        return item.id === requestId && item.patientId === currentUser.patientId;
+      });
+      if (!request || (decision === "revoked" ? request.status !== "approved" : request.status !== "pending")) return;
+      request.status = decision;
+      request.updatedAt = new Date().toISOString();
+      saveStore();
+      renderPatientRequests();
+      renderDoctorRequests();
+      if (decision === "revoked" && activeRequestId === requestId) {
+        activeRequestId = null;
+        $("#doctor-record").hidden = true;
+      }
+      toast(decision === "approved" ? "Access granted. The doctor can view and edit this demo record." : decision === "denied" ? "Request denied." : "Doctor access revoked.");
+    }
+
+    function openApprovedRecord(requestId) {
+      if (!currentUser || currentUser.role !== "doctor") return;
+      const request = appState.requests.find(function (item) {
+        return item.id === requestId && item.doctorId === currentUser.id && item.status === "approved";
+      });
+      if (!request || !canDoctorAccess(request.patientId) || !switchProfile(request.patientId)) {
+        toast("This record is not available. The patient may have revoked access.");
+        renderDoctorRequests();
+        return;
+      }
+      activeRequestId = request.id;
+      $("#doctor-record").hidden = false;
+      renderConditions();
+      renderAllergies();
+      renderMedications();
+      renderOverview();
+      renderDoctor();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function signIn(user) {
+      currentUser = { id: user.id, name: user.name, role: user.role, patientId: user.patientId || null };
+      sessionStorage.setItem("carepass-demo-user", currentUser.id);
+      if (user.role === "patient") switchProfile(user.patientId);
+      else {
+        activePatientId = null;
+        profile = JSON.parse(JSON.stringify(seedProfile));
+        activeRequestId = null;
+      }
+      $("#auth-screen").hidden = true;
+      document.body.classList.add("signed-in");
+      $("#login-error").textContent = "";
+      setDashboardForUser();
+      if (user.role === "patient") {
+        renderConditions();
+        renderAllergies();
+        renderMedications();
+        renderOverview();
+      }
+      renderDoctor();
+    }
+
+    function signOut() {
+      sessionStorage.removeItem("carepass-demo-user");
+      currentUser = null;
+      activePatientId = "CP-1001";
+      profile = appState.patients[activePatientId].profile;
+      activeRequestId = null;
+      $("#doctor-record").hidden = true;
+      $("#auth-screen").hidden = false;
+      document.body.classList.remove("signed-in");
+      document.body.classList.remove("patient-mode");
+      $("#login-form").reset();
+      $("#login-error").textContent = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    $("#login-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const username = normalize(form.get("username"));
+      const password = String(form.get("password") || "");
+      const user = demoUsers.find(function (item) { return item.username === username && item.password === password; });
+      if (!user) {
+        $("#login-error").textContent = "Account or password not recognized. Use one of the fictional demo accounts.";
+        return;
+      }
+      signIn(user);
+    });
+
+    document.querySelectorAll("[data-demo-login]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const role = button.dataset.demoLogin;
+        const user = demoUsers.find(function (item) { return item.role === role; });
+        if (user) signIn(user);
+      });
+    });
+
+    $("#logout-button").addEventListener("click", signOut);
+
+    $("#doctor-request-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!currentUser || currentUser.role !== "doctor") return;
+      const form = new FormData(event.currentTarget);
+      const patientId = String(form.get("patientId") || "").trim().toUpperCase();
+      const reason = String(form.get("reason") || "").trim();
+      if (!appState.patients[patientId]) {
+        toast("No demo patient was found with that ID.");
+        return;
+      }
+      const existing = appState.requests.find(function (request) {
+        return request.doctorId === currentUser.id && request.patientId === patientId && ["pending", "approved"].includes(request.status);
+      });
+      if (existing) {
+        toast(existing.status === "approved" ? "You already have access to this patient's record." : "You already have a pending request for this patient.");
+        return;
+      }
+      appState.requests.push({
+        id: "req-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+        doctorId: currentUser.id,
+        doctorName: currentUser.name,
+        patientId: patientId,
+        reason: reason,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+      saveStore();
+      event.currentTarget.reset();
+      renderDoctorRequests();
+      toast("Access request sent to the patient.");
+    });
+
+    $("#close-patient-record").addEventListener("click", function () {
+      activeRequestId = null;
+      activePatientId = null;
+      profile = JSON.parse(JSON.stringify(seedProfile));
+      $("#doctor-record").hidden = true;
+      renderDoctorRequests();
+    });
+
+    $("#doctor-condition-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!canDoctorAccess(activePatientId)) return toast("Patient access is required before editing.");
+      const form = new FormData(event.currentTarget);
+      const name = String(form.get("name") || "").trim();
+      if (!name) return;
+      profile.conditions.push({ id: "doctor-" + Date.now(), name: name, group: String(form.get("group")), detail: "Clinician entered", date: String(form.get("date") || ""), source: "Clinician entered" });
+      markUpdated();
+      event.currentTarget.reset();
+      renderDoctor();
+      toast("Condition added to the demo record.");
+    });
+
+    $("#doctor-allergy-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!canDoctorAccess(activePatientId)) return toast("Patient access is required before editing.");
+      const form = new FormData(event.currentTarget);
+      profile.allergies.push({ substance: String(form.get("substance") || "").trim(), reaction: String(form.get("reaction") || "").trim(), severity: String(form.get("severity")), source: "Clinician entered" });
+      profile.allergyStatus = "listed";
+      markUpdated();
+      event.currentTarget.reset();
+      renderDoctor();
+      toast("Allergy added to the demo record.");
+    });
+
+    $("#doctor-medication-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!canDoctorAccess(activePatientId)) return toast("Patient access is required before editing.");
+      const form = new FormData(event.currentTarget);
+      profile.medications.push({ name: String(form.get("name") || "").trim(), dose: String(form.get("dose") || "").trim(), frequency: String(form.get("frequency") || "").trim(), source: "Clinician entered" });
+      markUpdated();
+      event.currentTarget.reset();
+      renderDoctor();
+      toast("Medicine added to the demo record.");
+    });
+
+    $("#doctor-egfr-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!canDoctorAccess(activePatientId)) return toast("Patient access is required before editing.");
+      profile.egfr = $("#doctor-egfr").value;
+      profile.egfrDate = $("#doctor-egfr-date").value;
+      profile.egfrSource = "Clinician entered";
+      markUpdated();
+      renderDoctor();
+      toast("Kidney function updated in the demo record.");
+    });
 
     $("#condition-search").addEventListener("input", function (event) { showConditionResults(event.target.value); });
     $("#condition-search").addEventListener("focus", function (event) { if (event.target.value) showConditionResults(event.target.value); });
@@ -700,6 +1155,7 @@
 
     document.querySelectorAll('input[name="allergy-status"]').forEach(function (radio) {
       radio.addEventListener("change", function () {
+        if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
         profile.allergyStatus = radio.value;
         markUpdated();
         renderAllergies();
@@ -709,11 +1165,13 @@
 
     $("#allergy-form").addEventListener("submit", function (event) {
       event.preventDefault();
+      if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
       const form = new FormData(event.currentTarget);
       profile.allergies.push({
         substance: String(form.get("allergen")).trim(),
         reaction: String(form.get("reaction")),
-        severity: String(form.get("severity"))
+        severity: String(form.get("severity")),
+        source: "Patient reported"
       });
       profile.allergyStatus = "listed";
       event.currentTarget.reset();
@@ -725,11 +1183,13 @@
 
     $("#medication-form").addEventListener("submit", function (event) {
       event.preventDefault();
+      if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return toast("Only the signed-in patient can edit this profile.");
       const form = new FormData(event.currentTarget);
       profile.medications.push({
         name: String(form.get("name")).trim(),
         dose: String(form.get("dose")).trim(),
-        frequency: String(form.get("frequency"))
+        frequency: String(form.get("frequency")),
+        source: "Patient reported"
       });
       event.currentTarget.reset();
       markUpdated();
@@ -739,12 +1199,16 @@
     });
 
     $("#egfr").addEventListener("input", function (event) {
+      if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return;
       profile.egfr = event.target.value;
+      profile.egfrSource = "Patient reported";
       markUpdated();
       renderDoctor();
     });
     $("#egfr-date").addEventListener("change", function (event) {
+      if (!currentUser || currentUser.role !== "patient" || !canEditCurrentProfile()) return;
       profile.egfrDate = event.target.value;
+      profile.egfrSource = "Patient reported";
       markUpdated();
       renderDoctor();
     });
@@ -766,48 +1230,46 @@
       }
     });
 
-    $("#clinician-toggle").addEventListener("click", function () {
-      setView(currentView === "patient" ? "clinician" : "patient");
-    });
-    $("#tide-login").addEventListener("click", function () {
-      if (!window.carePassTideIntegrationLoaded) toast("Start CarePass with npm run dev to connect TideCloak.");
-    });
-
-    window.addEventListener("carepass:tide-role", function (event) {
-      const role = event.detail && event.detail.role;
-      const validRole = role === "patient" || role === "doctor";
-      if (validRole) {
-        document.body.dataset.carepassRole = role;
-        $("#clinician-toggle").hidden = true;
-        document.querySelectorAll("[data-open-patient]").forEach(function (button) { button.hidden = role === "doctor"; });
-        setView(role === "doctor" ? "clinician" : "patient");
-      } else {
-        delete document.body.dataset.carepassRole;
-        $("#clinician-toggle").hidden = false;
-        document.querySelectorAll("[data-open-patient]").forEach(function (button) { button.hidden = false; });
-        setView("patient");
+    window.addEventListener("storage", function (event) {
+      if (event.key !== STORE_KEY || !event.newValue) return;
+      try {
+        const updated = JSON.parse(event.newValue);
+        if (!updated || !updated.patients || !Array.isArray(updated.requests)) return;
+        appState.patients = updated.patients;
+        appState.requests = updated.requests;
+        if (currentUser?.role === "patient") {
+          switchProfile(currentUser.patientId);
+          renderPatientRequests();
+          renderConditions();
+          renderAllergies();
+          renderMedications();
+          renderOverview();
+        } else if (currentUser?.role === "doctor") {
+          renderDoctorRequests();
+          if (activePatientId && canDoctorAccess(activePatientId)) {
+            switchProfile(activePatientId);
+            renderDoctor();
+          } else if (activePatientId) {
+            activePatientId = null;
+            activeRequestId = null;
+            profile = JSON.parse(JSON.stringify(seedProfile));
+            $("#doctor-record").hidden = true;
+            toast("The patient changed or revoked access. The record is closed.");
+          }
+        }
+      } catch (_error) {
+        toast("Could not refresh the local demo data.");
       }
     });
-    document.querySelectorAll("[data-open-clinician]").forEach(function (button) {
-      button.addEventListener("click", function () { setView("clinician"); });
-    });
-    document.querySelectorAll("[data-open-patient]").forEach(function (button) {
-      button.addEventListener("click", function () { setView("patient"); });
-    });
 
+    saveStore();
     renderConditions();
     renderAllergies();
     renderMedications();
     renderOverview();
     renderDoctor();
-  </script>
-  <script type="module">
-    if (import.meta.env?.DEV || import.meta.env?.PROD) {
-      import("/src/tide-integration.js").catch(function () {
-        const status = document.querySelector("#tide-status");
-        if (status) status.textContent = "TideCloak package not ready · run npm install";
-      });
-    }
+    const restoredUser = demoUsers.find(function (user) { return user.id === sessionStorage.getItem("carepass-demo-user"); });
+    if (restoredUser) signIn(restoredUser);
   </script>
 </body>
 </html>
